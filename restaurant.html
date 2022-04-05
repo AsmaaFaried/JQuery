@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- CDN JQuery -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" integrity="sha512-894YE6QWD5I59HgZOGReFYm4dnWc1Qt5NtvYSaNcOP+u1T9qYdvdihz0PPSiiqn/+/3e7Jo4EaG7TubfWGUrMQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <link rel="stylesheet" href="style.css">
+    <!-- <link href="https://code.jquery.com/ui/1.10.4/themes/ui-lightness/jquery-ui.css" rel="stylesheet">   -->
+    <script src="https://code.jquery.com/jquery-1.10.2.js"></script>  
+    <script src="https://code.jquery.com/ui/1.10.4/jquery-ui.js"></script>  
+    <title>Restaurant</title>
+    <script>
+
+        let cartTotal = parseFloat(localStorage.getItem('cartTotal')?? 0.0);
+        $(() => {
+            let items = [];
+            let prices=[];
+            $.ajax({
+                url: 'items.js',
+                success: (resp) => {
+                    items = JSON.parse(resp);
+                    // console.log("items= ",items);
+                    $('#ajax-error').addClass('hidden');
+                    renderItems();
+                },
+                error: () => {
+                    $('#ajax-error').removeClass('hidden');
+                },
+                complete: () => {
+                    $('#loader').addClass('hidden');
+                }
+            })
+
+            const renderItems=()=>{
+                for(let [key, item] of Object.entries(items)) {
+                    // console.log("item = ",item);
+						const newItem = $('.item.hidden').clone(); 
+                        newItem
+                        .removeClass('hidden')
+							.appendTo('.items')
+							.children('img').attr('src', `${item.image}`);
+                            newItem
+							.attr('id', `price_${key}`);
+
+
+						newItem
+							.removeClass('hidden')
+							.appendTo('.items')
+							.children('h2')
+							.html(`${item.title}`)
+
+                        newItem
+							.removeClass('hidden')
+							.appendTo('.items')
+							.children('h3')
+							.html(`${item.description}`)
+
+                       newItem
+							.removeClass('hidden')
+							.appendTo('.items')
+							.children('h4')
+							.html(`${item.price}`).css({
+                                color:'red',
+                                fontSize:'25px'
+                            })
+
+
+
+             
+
+                $( function() {
+                    $(".item").draggable ({  
+                        helper : "clone"  
+                  });
+                        $( "#droppable-1" ).droppable({
+                            drop:function (event, ui) {
+                                var dropped = ui.draggable.clone();
+                                dropped.children('#addCardBtn').addClass('hidden');
+                                dropped.children('#removeCardBtn').removeClass('hidden');
+                                dropped.children('#div_quantity').removeClass('hidden');
+                                
+
+                                var droppedOn = $(this);
+                                dropped.draggable({ disabled: true });
+                                $(dropped).css({ 
+                                    top: 0, 
+                                    left: 0,
+                                    width:'37.5%',
+                                }).appendTo(droppedOn);
+                                
+                                //get the price of dropped elment
+                                 let item_price = dropped.find('h4').text();
+                                 addToCartTotal(item_price);
+                                //update total due
+                                // updateTotals(item_price);
+                                //add quantity btns
+                                // addQtyMarks(dropped, id);
+                                },
+                        }); 
+                    });
+							
+						
+					}
+                // add item price to cart total when buy
+				// is clicked
+				$('body').on('click', '#addCardBtn', function() {
+                    // $('##droppable-1')
+					const btn = $(this),
+                        
+                        cloneItem=btn.parent('.item').clone()
+                        cloneItem.children('#addCardBtn').addClass('hidden');
+                        cloneItem.children('#removeCardBtn').removeClass('hidden');
+                        cloneItem.children('#div_quantity').removeClass('hidden');
+                        cloneItem.appendTo("#droppable-1" ),
+					    id = btn.parent('.item').attr('id'),
+					    price =parseFloat(btn.parent('.item').attr('id',id).children('h4').text());
+					    addToCartTotal(price);
+				})
+
+                // remove item price to cart total when buy
+				// is clicked
+				$('body').on('click', '#removeCardBtn', function() {
+					const btn = $(this),
+					      id = btn.parent('.item').attr('id'),
+					      price =parseFloat(btn.parent('.item').attr('id',id).children('h4').text());
+                          quantity=btn.parent('.item').children('div .quantity').children('#quantity').text();
+                          priceWithTax=price*1.14*parseInt(quantity);
+                          alert(quantity)
+                          cloneItem=btn.parent('.item').remove()
+                         
+                         RemoveFromCartTotal(priceWithTax);
+				})
+
+                let i=1;
+                  // add item quantity to cart
+				// is clicked
+				$('body').on('click', '#btnAdd', function() {
+                    
+					const btn = $(this),
+                          selectItem=btn.parent('.quantity').parent('.item'),
+					      price =parseFloat(selectItem.children('h4').text());
+                        //   priceWithTax=price*1.14;
+                          quantity=btn.siblings('span').text();
+                          
+                        let number=parseInt(quantity)+1
+                          
+                        if(number>=1){
+                            newQuantity=btn.siblings('span').html(number);      
+                        }
+                         calculateQuantity(price,quantity,'+');
+                        
+				})
+
+                 // delete item quantity from cart
+				// is clicked
+				$('body').on('click', '#btnSub', function() {
+                    
+					const btn = $(this),
+                          selectItem=btn.parent('.quantity').parent('.item'),
+					      id = selectItem.attr('id'),
+					      price =parseFloat(selectItem.attr('id',id).children('h4').text());
+                        //   priceWithTax=price*1.14;
+                          quantity=btn.siblings('span').text();
+                          
+                        let number=parseInt(quantity)-1
+                          
+                        if(number>=1){
+                            newQuantity=btn.siblings('span').html(number);      
+                        }
+                        calculateQuantity(price,quantity,'-');
+				})
+                /// Calculate total price
+				const addToCartTotal = (price) => {
+                   let priceWithTax=price*(1.14);
+					cartTotal=cartTotal+priceWithTax;
+					localStorage.setItem('cartTotal', cartTotal);
+					$('.cartTotal h3').html(!cartTotal ? "0.0" : cartTotal);
+				}
+                addToCartTotal(0.0);
+                 /// Calculate total price when user remove item from cart
+                const RemoveFromCartTotal = (price) => {
+
+					let total=localStorage.getItem('cartTotal')
+                    total=(total-price).toFixed(2);
+					localStorage.setItem('cartTotal', total);
+					$('.cartTotal h3').html(total);
+				}
+            }
+
+
+            let lastCartTotal=0.0;
+            const  updateTotals=(item_price)=>{
+               lastCartTotal=+item_price;
+               addToCartTotal(lastCartTotal); 
+            }
+
+            const calculateQuantity=(price, qty,sign)=> {
+                const totalPrice=price* (qty-(qty-1))*1.14;
+                if(sign == '+'){
+                    cartTotal=cartTotal+totalPrice;
+                }
+                if(sign == '-'){
+                    cartTotal=cartTotal-totalPrice;
+                }
+                localStorage.setItem('cartTotal', cartTotal);
+				$('.cartTotal h3').html(cartTotal);
+            }
+         
+  } );
+    </script>
+</head>
+<body>
+    <header>
+
+        <img src="Images/logo.png" alt="rest-logo">
+        <h1>Restaurant</h1>
+    </header>
+    <div class="item hidden" id="draggable-1">
+        <img src="" alt="product-image" class="product_image">
+        <h2></h2>
+        <h3></h3>
+        <h4></h4>
+        <button id="addCardBtn">Add To Cart</button>
+        
+        <div id="div_quantity" class="quantity hidden">
+            <button id="btnSub">-</button> <span id="quantity">1</span> <button id="btnAdd">+</button>
+
+        </div>
+        <button id="removeCardBtn" class="hidden">Remove Item</button>
+    </div>
+    <div class="container">
+        <img alt="loader" src="Images/loader.webp" id="loader">
+        <div class="hidden error" id="ajax-error">Error while retrieving items! Try again later</div>
+        <div class="items">
+            
+        </div>
+       
+        <div class="cart">
+            <div class="cartTotal">
+                <h2>Cart Total</h2>
+                <img src="Images/grocery-cart.png" alt="cart_total" class="cart_total">
+                <div id="total_price">
+                    <h3></h3>
+                    <img src="Images/dollar.png" alt="carancy">
+                </div>
+               
+            </div>
+            <div id="separatedDiv">
+                <h2>Drop Items here</h2> 
+                <hr>
+           </div> 
+            <div class="Cart_prod" id="droppable-1"> 
+            </div>
+        </div>
+    </div>
+    
+</body>
+</html>
